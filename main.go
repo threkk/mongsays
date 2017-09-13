@@ -33,19 +33,43 @@ _   /      |
  (___/-(____)`,
 }
 
-func splitInLines(s string) []string {
-	lines := make([]string, 0)
-	words := strings.Split(s, " ")
+// Splits a "s" string in lines of length "width" with a total "margin" per line.
+// The split will try to respect the words and will create new lines if adding a
+// new word to the current line makes it break unless the word is bigger than the
+// width, in which case it will be splitted.
+func splitInLines(s string, width int, margin int) []string {
+	// Simple case: the whole string is smaller than the width.
+	if (len(s) + margin) < width {
+		return []string{s}
+	}
 
-	acc := 0
+	// Complex case: the line needs to be splitted.
+	lines := make([]string, 0)
+	words := strings.Fields(s)
+
+	accumulator := 0
 	index := 0
 	for i, word := range words {
-		acc = acc + len(word) + 1 // Separation between words needs to be added.
-		if acc > (width - 4) {
-			line := strings.Join(words[index:i-1], " ")
+		// Word is longer than the line width.
+		if len(word) > width {
+			w := word
+			for len(w) > width {
+				var line string
+				line, w = w[0:width], w[width:]
+				lines = append(lines, line)
+			}
+
+			index = i
+			accumulator = 0
+			continue
+		}
+
+		accumulator = accumulator + len(word) + 1 // Separation between words needs to be added.
+		if accumulator > (width - 4) {
+			line := strings.Join(words[index:i], " ")
 			lines = append(lines, line)
 			index = i
-			acc = 0
+			accumulator = 0
 		}
 	}
 	return lines
@@ -59,10 +83,6 @@ func showBalloon(lines []string) {
 		//  -------
 	}
 
-}
-
-func showDog(dogType int) {
-	fmt.Println(dogs[dogType])
 }
 
 func showVersion() {
@@ -93,6 +113,7 @@ func main() {
 	isMute := flag.Bool("mute", false, "Print the dog without the speech bubble.")
 	isVersion := flag.Bool("version", false, "Print the version number.")
 	dogType := flag.Int("type", 0, "Dog version to use: 0 (default), 1 or 2.")
+
 	flag.Parse()
 
 	text := strings.Join(flag.Args(), " ")
@@ -101,12 +122,14 @@ func main() {
 		showVersion()
 	}
 
-	if *dogType >= len(dogs) || *dogType < 0 {
+	if *dogType < 0 || *dogType >= len(dogs) {
 		showError(*dogType)
 	}
 
 	if !*isMute {
-		showBalloon(splitInLines(text))
+		showBalloon(splitInLines(text, width, 2))
 	}
-	showDog(*dogType)
+
+	fmt.Println(dogs[*dogType])
+	os.Exit(0)
 }
