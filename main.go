@@ -88,13 +88,49 @@ func splitInLines(s string, width int, padding int) []string {
 }
 
 func showBalloon(lines []string) {
-	if len(lines) == 1 && len(lines[0]) < width {
-		// Line is smaller tha 80, we need to wrap it.
+	amountOfLines := len(lines)
+	firstLineLen := len(lines[0])
+	topBorder := strings.Repeat("_", firstLineLen)
+	bottomBorder := strings.Repeat("-", firstLineLen)
+
+	// Top border
+	fmt.Printf(" _%s_ \n", topBorder)
+	switch amountOfLines {
+	case 1:
+		// Only one line.
 		//  _______
 		// < Mong! >
 		//  -------
+		fmt.Printf("< %s >\n", lines[0])
+	case 2:
+		// Two lines.
+		//  ------
+		// / Mong!\
+		// \ Mong!/
+		//  ------
+		fmt.Printf("/ %s \\\n", lines[0])
+		fmt.Printf("\\ %s /\n", lines[1])
+	default:
+		// More than two.
+		//  -------
+		// / Mong! \
+		// | Mong! |
+		// \ Mong! /
+		//  -------
+		for i, line := range lines {
+			switch i {
+			case 0:
+				fmt.Printf("/ %s \\\n", line)
+			case amountOfLines:
+				fmt.Printf("\\ %s /\n", line)
+			default:
+				fmt.Printf("| %s |\n", line)
+			}
+		}
 	}
 
+	// Bottom border
+	fmt.Printf(" -%s- \n", bottomBorder)
 }
 
 // Displays the version of the application.
@@ -149,7 +185,7 @@ func main() {
 	}
 
 	if !*isMute {
-		showBalloon(splitInLines(text, width, 2))
+		showBalloon(splitInLines(text, width, 4))
 	}
 
 	fmt.Printf("%s\n", dogs[*dogType])
