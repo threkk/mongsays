@@ -7,9 +7,13 @@ import (
 	"strings"
 )
 
+// Version number.
 const version string = "0.0.1"
+
+// Maximum width of the screen.
 const width = 80
 
+// Array containing three different types of ASCII art for the dogs.
 var dogs = []string{
 
 	0: ` \ ______/ U'-,
@@ -33,13 +37,15 @@ _   /      |
  (___/-(____)`,
 }
 
-// Splits a "s" string in lines of length "width" with a total "margin" per line.
+// Splits a "s" string in lines of length "width" with a total "padding" per line.
 // The split will try to respect the words and will create new lines if adding a
 // new word to the current line makes it break unless the word is bigger than the
 // width, in which case it will be splitted.
-func splitInLines(s string, width int, margin int) []string {
+func splitInLines(s string, width int, padding int) []string {
+
+	computedWidth := width - padding
 	// Simple case: the whole string is smaller than the width.
-	if (len(s) + margin) < width {
+	if len(s) <= computedWidth {
 		return []string{s}
 	}
 
@@ -51,11 +57,16 @@ func splitInLines(s string, width int, margin int) []string {
 	index := 0
 	for i, word := range words {
 		// Word is longer than the line width.
-		if len(word) > width {
+		if len(word) >= computedWidth {
 			w := word
-			for len(w) > width {
+			for len(w) > 0 {
 				var line string
-				line, w = w[0:width], w[width:]
+				maxWordSize := computedWidth
+				if len(w) < computedWidth {
+					maxWordSize = len(w)
+				}
+
+				line, w = w[0:maxWordSize], w[maxWordSize:]
 				lines = append(lines, line)
 			}
 
@@ -64,8 +75,9 @@ func splitInLines(s string, width int, margin int) []string {
 			continue
 		}
 
-		accumulator = accumulator + len(word) + 1 // Separation between words needs to be added.
-		if accumulator > (width - 4) {
+		// Separation between words needs to be added.
+		accumulator = accumulator + len(word) + 1
+		if accumulator > computedWidth {
 			line := strings.Join(words[index:i], " ")
 			lines = append(lines, line)
 			index = i
@@ -76,7 +88,7 @@ func splitInLines(s string, width int, margin int) []string {
 }
 
 func showBalloon(lines []string) {
-	if len(lines) == 1 && len(lines[0]) < 80 {
+	if len(lines) == 1 && len(lines[0]) < width {
 		// Line is smaller tha 80, we need to wrap it.
 		//  _______
 		// < Mong! >
@@ -85,11 +97,13 @@ func showBalloon(lines []string) {
 
 }
 
+// Displays the version of the application.
 func showVersion() {
-	fmt.Println(version)
+	fmt.Printf("%s\n", version)
 	os.Exit(0)
 }
 
+// Displays the error message in case the option is incorrect.
 func showError(option int) {
 	fmt.Printf("Invalid option: %d.\n\n", option)
 	flag.Usage()
@@ -97,26 +111,34 @@ func showError(option int) {
 }
 
 func main() {
-	// Sets the output to the stdout instead of the stderr.
-	flag.CommandLine.SetOutput(os.Stdout)
+	// Gets the command name and the arguments.
+	cmdName, cmdArgs := os.Args[0], os.Args[1:]
 
-	// Change the command line
-	flag.Usage = func() {
+	// Creates a new CLI parser.
+	cmd := flag.NewFlagSet(cmdName, flag.ExitOnError)
+	cmd.SetOutput(os.Stdout)
+
+	isMute := cmd.Bool("mute", false, "Print the dog without the speech bubble.")
+	isVersion := cmd.Bool("version", false, "Print the version number.")
+	dogType := cmd.Int("type", 0, "Dog version to use: 0 (default), 1 or 2.")
+
+	// Change the command line usage text.
+	cmd.Usage = func() {
 		fmt.Printf("Mong says - A dog version of cowsay (v%s)\n", version)
-		fmt.Println()
-		fmt.Println("Usage: mongsay [options] <text>")
-		fmt.Println("Options:")
-		fmt.Println()
-		flag.PrintDefaults()
+		fmt.Printf("\n")
+		fmt.Printf("Usage:\n")
+		fmt.Printf("  mongsays [-type number] <text>...\n")
+		fmt.Printf("  mongsays -version\n")
+		fmt.Printf("  mongsays -h | --help\n")
+		fmt.Printf("\n")
+		fmt.Printf("Options:\n")
+		fmt.Printf("\n")
+
+		cmd.PrintDefaults()
 	}
 
-	isMute := flag.Bool("mute", false, "Print the dog without the speech bubble.")
-	isVersion := flag.Bool("version", false, "Print the version number.")
-	dogType := flag.Int("type", 0, "Dog version to use: 0 (default), 1 or 2.")
-
-	flag.Parse()
-
-	text := strings.Join(flag.Args(), " ")
+	cmd.Parse(cmdArgs)
+	text := strings.Join(cmd.Args(), " ")
 
 	if *isVersion {
 		showVersion()
@@ -130,6 +152,6 @@ func main() {
 		showBalloon(splitInLines(text, width, 2))
 	}
 
-	fmt.Println(dogs[*dogType])
+	fmt.Printf("%s\n", dogs[*dogType])
 	os.Exit(0)
 }
