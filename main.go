@@ -38,52 +38,23 @@ _   /      |
 }
 
 // Splits a "s" string in lines of length "width" with a total "padding" per line.
-// The split will try to respect the words and will create new lines if adding a
-// new word to the current line makes it break unless the word is bigger than the
-// width, in which case it will be splitted.
-func splitInLines(s string, width int, padding int) []string {
-
-	computedWidth := width - padding
-	// Simple case: the whole string is smaller than the width.
-	if len(s) <= computedWidth {
-		return []string{s}
-	}
-
-	// Complex case: the line needs to be splitted.
+func splitInLines(str string, width int, padding int) []string {
+	length := width - padding
+	line := ""
 	lines := make([]string, 0)
-	words := strings.Fields(s)
 
-	accumulator := 0
-	index := 0
-	for i, word := range words {
-		// Word is longer than the line width.
-		if len(word) >= computedWidth {
-			w := word
-			for len(w) > 0 {
-				var line string
-				maxWordSize := computedWidth
-				if len(w) < computedWidth {
-					maxWordSize = len(w)
-				}
-
-				line, w = w[0:maxWordSize], w[maxWordSize:]
-				lines = append(lines, line)
-			}
-
-			index = i
-			accumulator = 0
-			continue
-		}
-
-		// Separation between words needs to be added.
-		accumulator = accumulator + len(word) + 1
-		if accumulator > computedWidth {
-			line := strings.Join(words[index:i], " ")
+	chars := []rune(str)
+	end := len(chars)
+	for i, char := range chars {
+		line = line + string(char)
+		if (i+1)%length == 0 {
 			lines = append(lines, line)
-			index = i
-			accumulator = 0
+			line = ""
+		} else if (i + 1) == end {
+			lines = append(lines, line)
 		}
 	}
+
 	return lines
 }
 
@@ -131,6 +102,8 @@ func showBalloon(lines []string) {
 
 	// Bottom border
 	fmt.Printf(" -%s- \n", bottomBorder)
+	fmt.Printf("   \\ \n")
+	fmt.Printf("\n")
 }
 
 // Displays the version of the application.
@@ -184,7 +157,7 @@ func main() {
 		showError(*dogType)
 	}
 
-	if !*isMute {
+	if !*isMute && len(text) > 0 {
 		showBalloon(splitInLines(text, width, 4))
 	}
 
