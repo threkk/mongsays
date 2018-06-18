@@ -3,16 +3,21 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/threkk/mongsays/terminal"
 	"os"
 	"strings"
 )
 
-// Version number.
-const version string = "0.0.1"
+const (
+	version string = "1.0.0"
+	padding        = 4
+)
 
-// Maximum width of the screen.
-const width = 80
-const padding = 4
+var (
+	isQuiet   bool
+	isVersion bool
+	dogType   int
+)
 
 // Array containing three different types of ASCII art for the dogs.
 var dogs = []string{
@@ -55,7 +60,7 @@ var usage = func() {
 
 // Splits a "s" string in lines of length "width" with a total "padding" per line.
 // It returns an array with a line item.
-func splitInLines(str string) []string {
+func splitInLines(str string, width int) []string {
 	length := width - padding
 	line := ""
 	lines := make([]string, 0)
@@ -75,8 +80,13 @@ func splitInLines(str string) []string {
 	return lines
 }
 
-func fixLength(length int, str string) string {
+func alignRight(str string, length int) string {
 	verb := fmt.Sprintf("%%%ds", length)
+	return fmt.Sprintf(verb, str)
+}
+
+func alignLeft(str string, length int) string {
+	verb := fmt.Sprintf("%%-%ds", length)
 	return fmt.Sprintf(verb, str)
 }
 
@@ -89,7 +99,7 @@ func applyBalloon(lines []string) []string {
 	lineLen := len(lines[0])
 
 	// Top border
-	result = append(result, fmt.Sprintf(" _%20s_ ", strings.Repeat("_", lineLen)))
+	result = append(result, fmt.Sprintf(" _%s_ ", strings.Repeat("_", lineLen)))
 
 	switch amountOfLines {
 	case 1:
@@ -97,15 +107,15 @@ func applyBalloon(lines []string) []string {
 		//  _______
 		// < Mong! >
 		//  -------
-		result = append(result, fmt.Sprintf("< %20s >", lines[0]))
+		result = append(result, fmt.Sprintf("< %s >", lines[0]))
 	case 2:
 		// Two lines.
 		//  ------
 		// / Mong!\
 		// \ Mong!/
 		//  ------
-		result = append(result, fmt.Sprintf("/ %20s \\", lines[0]))
-		result = append(result, fmt.Sprintf("\\ %20s /", lines[1]))
+		result = append(result, fmt.Sprintf("/ %s \\", lines[0]))
+		result = append(result, fmt.Sprintf("\\ %s /", alignLeft(lines[1], lineLen)))
 	default:
 		// More than two.
 		//  -------
@@ -116,26 +126,24 @@ func applyBalloon(lines []string) []string {
 		for i, line := range lines {
 			switch i {
 			case 0:
-				result = append(result, fmt.Sprintf("/ %20s \\", line))
-			case amountOfLines:
-				result = append(result, fmt.Sprintf("\\ %20s /", line))
+				result = append(result, fmt.Sprintf("/ %s \\", line))
 			default:
-				result = append(result, fmt.Sprintf("| %20s |", line))
+				result = append(result, fmt.Sprintf("| %s |", line))
+			case amountOfLines - 1:
+				result = append(result, fmt.Sprintf("\\ %s /", alignLeft(line, lineLen)))
 			}
 		}
 	}
 
 	// Bottom border
-	result = append(result, fmt.Sprintf(" -%20s- ", strings.Repeat("-", lineLen)))
-	result = append(result, fmt.Sprintf("%20s", "//  "))
-	// result = append(result, "\n")
+	result = append(result, fmt.Sprintf(" -%s- ", strings.Repeat("-", lineLen)))
+	result = append(result, fmt.Sprintf("%s", "//  "))
+
+	for i, r := range result {
+		result[i] = alignRight(r, 20)
+	}
 
 	return result
-}
-
-// Returns the version of the application and a successful status code.
-func getVersion() (string, int) {
-	return fmt.Sprintf("%s\n", version), 0
 }
 
 // Returns the error message for a given option and unsuccessful status code.
@@ -143,38 +151,40 @@ func getError(option int) (string, int) {
 	return fmt.Sprintf("Invalid option: %d.\n", option), 1
 }
 
-func main() {
+func init() {
+
 	// Error message
 	flag.Usage = usage
 
 	// Flags
-	isMute := flag.Bool("mute", false, "Print the dog without the speech bubble.")
-	isVersion := flag.Bool("version", false, "Print the version number.")
-	dogType := flag.Int("type", 0, "Dog version to use: 0 (default), 1 or 2.")
+	flag.BoolVar(&isQuiet, "quiet", false, "Print the dog without the speech bubble.")
+	flag.BoolVar(&isVersion, "version", false, "Print the version number.")
+	flag.IntVar(&dogType, "type", 0, "Dog version to use: 0 (default), 1 or 2.")
+}
 
+func main() {
 	// Parse the CLI.
 	flag.Parse()
 
 	// Main text
 	text := strings.Join(flag.Args(), " ")
 
-	var out string
-	var code int
-
-	if *isVersion {
-		out, code = getVersion()
-	} else if *dogType < 0 || *dogType >= len(dogs) {
-		out, code = getError(*dogType)
-	} else if *isMute || len(text) == 0 {
-		out = dogs[*dogType]
-		code = 0
-	} else {
-		balloon := applyBalloon(splitInLines(text))
-		out = strings.Join(append(balloon, dogs[*dogType]), "\n")
-		code = 0
+	if isVersion {
+		fmt.Printf("%s\n", version)
+		os.Exit(0)
 	}
 
-	fmt.Printf(out)
-	fmt.Println()
-	os.Exit(code)
+	if dogType < 0 || dogType >= len(dogs) {
+		fmt.Printf("Invalid option: %d.\n", dogType)
+		os.Exit(1)
+	}
+
+	balloon := make([]string, 0)
+	if !isQuiet && len(text) > 0 {
+		width := terminal.GetColumns()
+		balloon = applyBalloon(splitInLines(text, int(width)))
+	}
+
+	fmt.Printf(strings.Join(append(balloon, dogs[dogType]), "\n"))
+	os.Exit(0)
 }
